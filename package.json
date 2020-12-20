@@ -1,0 +1,25 @@
+{
+  "name": "ifunny-chat.js",
+  "version": "1.0.17",
+  "description": "iFunny js chatbot library",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TobiWtf/ifunny-bot.git"
+  },
+  "author": "tobi",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TobiWtf/ifunny-bot/issues"
+  },
+  "homepage": "https://github.com/TobiWtf/ifunny-bot#readme",
+  "dependencies": {
+    "events": "^3.2.0",
+    "ws": "^7.4.1"
+  },
+  "devDependencies": {},
+  "keywords": []
+}
