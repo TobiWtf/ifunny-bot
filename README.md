@@ -13,6 +13,7 @@ const bot = new client(
         bearer: "your_bearer",
         uid: "your_uid",
         prefix: "bots_prefix",
+        AutoAcceptInvites: true,
     },
 );
 ```

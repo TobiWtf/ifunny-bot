@@ -10,6 +10,7 @@ var connection;
 class WebsocketClient {
     
     constructor(opts={}) {
+        this.autoacceptinvites = opts.AutoAcceptInvites;
         this.reset();
         this.prefix = opts.prefix || "@";
         this.bearer = opts.bearer || null;
@@ -27,7 +28,6 @@ class WebsocketClient {
     async message(rawdata, parsed) {
 
         const once_initialized = async(channel, message) => {
-            console.log(message.text);
             if (message.user.id == this.uid) {
                 return; // Same userid as client...
             };
@@ -40,13 +40,14 @@ class WebsocketClient {
             args.shift();
             let ctx = {
                 channel: channel,
+                message: message,
                 args: args,
                 command: cmd
             };
             commandEmitter.emit("command", ctx)
         };
 
-        parsed.chats.forEach(chat => {
+        parsed.chats.forEach(async chat => {
                 let channel = new parser.channel(
                     {
                         messageEmitter: messageEmitter,
@@ -60,13 +61,27 @@ class WebsocketClient {
 
     };
 
+    async invites(rawdata, parsed) {
+        if (!this.autoacceptinvites) {return}
+
+        parsed.chats.forEach(async chat => {
+            console.log(chat.name)
+                messageEmitter.emit("send", [48, 282, {}, "co.fun.chat.invite.accept", [],
+                {"chat_name": chat.name}])
+            }
+        )
+    }
+
     async includes_parsed(rawdata, parsed) {
         if (!parsed) {
             return;
         };
         if (parsed.type == 100) {
             return this.message(rawdata, parsed);
-        }
+        };
+        if (parsed.type == 300) {
+            return this.invites(rawdata, parsed);
+        };
     }
 
     async login(rawdata, parsed) {
@@ -119,10 +134,13 @@ class client {
         this.prefix = opts.prefix;
         this.commands = opts.commads || {};
         commandEmitter.on("command", async ctx => this.commands[ctx.command](ctx) || null)
+        console.log(opts.AutoAcceptInvites)
         this.con = new WebsocketClient(
             {
                 bearer: this.bearer,
-                uid: this.uid
+                uid: this.uid,
+                AutoAcceptInvites: opts.AutoAcceptInvites,
+                prefix: this.prefix
             }
         );
     };
