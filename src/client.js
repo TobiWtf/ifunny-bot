@@ -1,4 +1,5 @@
 const parser = require("./parser");
+const api = {ifunny: require("./ifunny")}
 
 module.exports = class client {
     constructor(config={}) {
@@ -10,6 +11,7 @@ module.exports = class client {
         this.events = {};
         this.commands = config.commands || {};
         this.autojoin = config.autojoin || false;
+        this.ifunnyapi = new api.ifunny(config);
 
         this.socks.BotEmitter.on(
             "handle_message",
@@ -141,7 +143,13 @@ module.exports = class client {
                                                 message: last_msg
                                             },
                                             channel: channel,
-                                            frame: ctx
+                                            api: {
+                                                ifunny: this.ifunnyapi
+                                            },
+                                            source: {
+                                                frame: ctx,
+                                                class: this
+                                            }
                                         };
 
                                         this.process_command(context);

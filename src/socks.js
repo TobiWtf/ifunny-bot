@@ -3,7 +3,7 @@ const BotEmitter = new (class eventEmitter extends require("events"){})();
 
 module.exports = class socks {
     constructor(config={}) {
-        this.wslink = config.api || "wss://chat.ifunny.co/chat";
+        this.wslink = config.websocurl || "wss://chat.ifunny.co/chat";
         this.header = config.header || ["wamp.json",];
         this.reset_connection = config.reset_connection || true;
         this.BotEmitter = BotEmitter;
