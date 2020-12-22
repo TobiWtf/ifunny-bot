@@ -12,34 +12,63 @@ const bot = new client(
     {
         bearer: "your_bearer",
         uid: "your_uid",
-        prefix: "bots_prefix",
-        AutoAcceptInvites: true,
-    },
+        autojoin: true,
+        prefix: ","
+    }
+);
 );
 ```
 
 There are a couple of ways of adding commands
 
 ```js
-
 bot.command(
     "help",
-    async (ctx) => {
-        return ctx.channel.send("Help message...");
+    async ctx => {
+        return ctx.channel.send("help message");
+    },
+);
+
+bot.command(
+    "members",
+    async ctx => {
+        ctx.channel.getChannelMembers(
+            async response => {
+                let nicks = [];
+                for (let {nick} of response) {
+                    nicks.push(nick);
+                };
+                ctx.channel.send(nicks.join("\n"));
+            },
+        );
     },
 );
 ```
 
-Or
+Orrr 
 
 ```js
+bot.command(
+    "help",
+    function help(ctx) {
+        ctx.channel.send("help message")
+    }
+)
 
-
-const help = async (ctx) => {
-    return ctx.channel.send("Help message...");
-};
-
-bot.command("help", help)
+bot.command(
+    "members",
+    function members(ctx) {
+        ctx.channel.getChannelMembers(
+            function callback(response) {
+                let nicks = [];
+                for (let {nick} of response) {
+                    nicks.push(nick)
+                };
+                ctx.channel.send(nicks.join("\n"))
+            }
+        )
+    }
+)
 ```
 
 Or even, using a more outdated method

@@ -1,152 +1,218 @@
-const EventEmitterModule = require('events');
-class EventEmitter extends EventEmitterModule {};
-const messageEmitter = new EventEmitter();
-const commandEmitter = new EventEmitter();
-const parser = require("./parser")
-const ws = require("ws");
+const parser = require("./parser");
 
-var connection;
+module.exports = class client {
+    constructor(config={}) {
+        this.socks = new (require("./socks"))(config);
+        this.bearer = config.bearer;
+        this.uid = config.uid;
+        this.prefix = config.prefix || "!";
+        this.selfrespond = config.selfrespond || false;
+        this.events = {};
+        this.commands = config.commands || {};
+        this.autojoin = config.autojoin || false;
 
-class WebsocketClient {
-    
-    constructor(opts={}) {
-        this.autoacceptinvites = opts.AutoAcceptInvites;
-        this.reset();
-        this.prefix = opts.prefix || "@";
-        this.bearer = opts.bearer || null;
-        this.uid = opts.uid || null;
-        messageEmitter.on("send", async data => connection.send(JSON.stringify(data)))
-        messageEmitter.on("reset", async=>this.reset())
-        messageEmitter.on("parse", async(data, parsed)=>this.parse(data, parsed || null))
-    };
-
-    async parse(rawdata, parsed) {
-        this.login(rawdata, parsed);
-        this.includes_parsed(rawdata, parsed)
-    };
-
-    async message(rawdata, parsed) {
-
-        const once_initialized = async(channel, message) => {
-            if (message.user.id == this.uid) {
-                return; // Same userid as client...
-            };
-            if (!message.text) {
-                return;
-            };
-            if (!message.text.startsWith(this.prefix)) {return};
-            const args = message.text.trim().split(/ +/g);
-            const cmd = args[0].slice(this.prefix.length).toLowerCase();
-            args.shift();
-            let ctx = {
-                channel: channel,
-                message: message,
-                args: args,
-                command: cmd
-            };
-            commandEmitter.emit("command", ctx)
-        };
-
-        parsed.chats.forEach(async chat => {
-                let channel = new parser.channel(
-                    {
-                        messageEmitter: messageEmitter,
-                        data: chat
-                    }
-                );
-                let message = chat.last_msg;
-                once_initialized(channel, message)
-            }
+        this.socks.BotEmitter.on(
+            "handle_message",
+            async ctx => {
+                try {
+                    this.handle_message(ctx);
+                } catch(err) {
+                    //Handle errors
+                    console.log(err);
+                };
+            },
         );
 
+        this.socks.BotEmitter.on(
+            "run_event", 
+            async(req_id, response)=>{
+                if (!this.events[req_id]) {
+                    return;
+                } else {
+                    this.events[req_id](response);
+                    delete this.events[req_id];
+                };
+            },
+        );
+
+        this.socks.BotEmitter.on(
+            "add_event", 
+            async (req_id, callback) => {
+                this.events[req_id] = callback;
+            },
+        );
     };
 
-    async invites(rawdata, parsed) {
-        if (!this.autoacceptinvites) {return}
+    async command(name, callback) {
+        this.commands[name] = callback;
+    };
 
-        parsed.chats.forEach(async chat => {
-            console.log(chat.name)
-                messageEmitter.emit("send", [48, 282, {}, "co.fun.chat.invite.accept", [],
-                {"chat_name": chat.name}])
-            }
-        )
-    }
-
-    async includes_parsed(rawdata, parsed) {
-        if (!parsed) {
-            return;
-        };
-        if (parsed.type == 100) {
-            return this.message(rawdata, parsed);
-        };
-        if (parsed.type == 300) {
-            return this.invites(rawdata, parsed);
-        };
-    }
-
-    async login(rawdata, parsed) {
-        if (rawdata.includes("ticket")) {
-            messageEmitter.emit("send", [5, this.bearer, {}])
-        };
-        if (parsed && parsed.authid) {
-            messageEmitter.emit("send", [32, 1, {}, `co.fun.chat.user.${this.uid}.chats`]);
-            messageEmitter.emit("send", [32, 2, {}, `co.fun.chat.user.${this.uid}.invites`])
+    async process_command(ctx) {
+        //Handle commands here.
+        let command = this.commands[ctx.command.name];
+        if (command) {
+            command(ctx);
+        } else {
+            //Add a handler for if something isnt a command.
         }
     };
 
-    async reset() {
-        connection = new ws(`wss://chat.ifunny.co/chat`, ["wamp.json",]),
-            connection.onmessage = this._onmessage,
-            connection.onerror = this._onerror,
-            connection.onopen = this._onopen,
-            connection.onclose = this._onclose;
-    };
+    async handle_message(ctx) {
+        let parsed = ctx.data.parsed;
+        let raw = ctx.data.raw;
+        let reqid = raw[1];
+        //Handle reqid shit
+        (
+            async() => {
+                if (reqid == "ticket") {
+                    console.log("Ticket request sent...authenticating");
 
-    async _onclose() {
-        messageEmitter.emit("reset");
-    };
+                    this.socks.BotEmitter.emit(
+                        "websocket_send",
+                        [
+                            5, 
+                            this.bearer, 
+                            {},
+                        ],
+                    );
 
-    async _onmessage(message) {
-        let data = JSON.parse(message.data);
-        let parsed = null;
-        if (typeof(data.slice(-1)[0]) == "object") {
-            parsed = data.slice(-1)[0];
-        };
-        messageEmitter.emit("parse", data, parsed)
-    };
+                    console.log("Authentication sent...");
 
-    async _onerror(error) {
-        console.log("Connection ran into an error: " + error.message, "\n\nRestarting bot...");
-        messageEmitter.emit("reset");
-    };
+                    this.socks.BotEmitter.emit(
+                        "websocket_send",
+                        [
+                            32, 
+                            1, //1 is the reqid
+                            {}, 
+                            `co.fun.chat.user.${this.uid}.chats`,
+                        ],
+                    );
 
-    async _onopen() {
-        console.log("Bot came online!! (If this message shows repeadetly, your credentials are invalid.)");
-        messageEmitter.emit("send",[1, "co.fun.chat.ifunny", {"authmethods": ["ticket"], "roles": {"publisher": {}, "subscriber": {}}}]);
-    };
-}
+                    this.socks.BotEmitter.emit(
+                        "websocket_send",
+                        [
+                            32, 
+                            2, //2 is the reqid 
+                            {}, 
+                            `co.fun.chat.user.${this.uid}.invites`,
+                        ],
+                    );
 
-class client {
-    constructor(opts={}) {
-        this.bearer = opts.bearer;
-        this.uid = opts.uid;
-        this.basic = opts.basic || null;
-        this.prefix = opts.prefix;
-        this.commands = opts.commads || {};
-        commandEmitter.on("command", async ctx => this.commands[ctx.command](ctx) || null)
-        console.log(opts.AutoAcceptInvites)
-        this.con = new WebsocketClient(
-            {
-                bearer: this.bearer,
-                uid: this.uid,
-                AutoAcceptInvites: opts.AutoAcceptInvites,
-                prefix: this.prefix
+                };
             }
-        );
-    };
-    async command(command_name, callback) {
-        this.commands[command_name] = callback;
+        )();
+
+        // Handle parsed information
+
+        (
+            async() => {
+                if (parsed) {
+                    if (parsed.type == 100) {
+                        //Handle message frame
+                        for (let index in parsed.chats) {
+                            let chat = parsed.chats[index];
+                            (
+                                async () => {
+                                    let channel = new parser.channel(
+                                        {
+                                            data: chat,
+                                            BotEmitter: this.socks.BotEmitter
+                                        },
+                                    );
+                                    let last_msg = chat.last_msg;
+                                    if (!last_msg.text) {
+                                        return; //Message isnt a real message
+                                    };
+
+                                    //Add an event listener for users to parse own messages
+                                    //send ctx and message content
+
+                                    const parse = async () => {
+                                        let args_list = last_msg.text.trim().split(/ +/g);
+                                        let cmd = args_list[0].slice(this.prefix.length).toLowerCase();
+                                        args_list.shift();
+                                        let args = args_list.join(" ");
+
+                                        let context = {
+                                            command: {
+                                                name: cmd,
+                                                args: args,
+                                                args_list: args_list,
+                                                message: last_msg
+                                            },
+                                            channel: channel,
+                                            frame: ctx
+                                        };
+
+                                        this.process_command(context);
+                                    }
+
+                                    if (this.selfrespond) {
+                                        return parse();
+                                    };
+
+                                    if (last_msg.user.id == this.uid) {
+                                        return //Same as client.
+                                    };
+
+                                    if (!last_msg.text.startsWith(this.prefix)) {
+                                        return //Isnt a command, doesnt start with prefix.
+                                    };
+                                    return parse();
+                                }
+                            )();
+                        };
+                    } else if (parsed.type == 300){
+                        //Handle invite frames
+                        for (let index in parsed.chats) {
+                            let chat = parsed.chats[index];
+                            (
+                                async () => {
+                                    let channel = new parser.channel(
+                                        {
+                                            data: chat,
+                                            BotEmitter: this.socks.BotEmitter,
+                                        },
+                                    );
+                                    if (this.autojoin) {
+                                        channel.join();
+                                    } else {
+                                        console.log("You were invited to a channel but autojoin is set to false.");   
+                                    };
+                                }
+                            )();
+                        }
+                    };
+                } else {
+                    return;
+                };
+            }
+        )();
+
+        //Handle channel data
+
+        (
+            async() => {
+                if (raw[4]) {
+                    if (raw[4].members) {
+
+                        let response = {
+                            members: raw[4].members,
+                        };
+
+                        if (raw[4].next) {
+                            response.next = raw[4].next;
+                        };
+
+                        this.socks.BotEmitter.emit(
+                            "run_event",
+                            raw[1],
+                            response
+                        );
+                    };
+                };
+            }
+        )();
+
     };
 };
-
-module.exports = client;
