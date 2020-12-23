@@ -78,7 +78,7 @@ async function help(ctx) {
 };
 
 async function onearg(ctx) {
-    let arg = args[0];
+    let arg = ctx.command.args_list[0];
     return ctx.channel.send(arg);
 };
 
