@@ -1,6 +1,6 @@
 {
   "name": "ifunny-chat.js",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "iFunny js chatbot library",
   "main": "index.js",
   "scripts": {
