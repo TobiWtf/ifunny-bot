@@ -25,7 +25,7 @@ module.exports = class ifunny {
         .then(
             async response => {
                 callback(
-                    response.data
+                    response.data.data
                 );
             },
         )

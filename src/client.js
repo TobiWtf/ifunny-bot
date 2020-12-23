@@ -12,7 +12,8 @@ module.exports = class client {
         this.commands = config.commands || {};
         this.autojoin = config.autojoin || false;
         this.ifunnyapi = new api.ifunny(config);
-
+        this.onmessage = config.onmessage || null;
+        
         this.socks.BotEmitter.on(
             "handle_message",
             async ctx => {
@@ -128,6 +129,21 @@ module.exports = class client {
 
                                     //Add an event listener for users to parse own messages
                                     //send ctx and message content
+
+                                    if (this.onmessage) {
+                                        let context = {
+                                            message: last_msg,
+                                            channel: channel,
+                                            api: {
+                                                ifunny: this.ifunnyapi
+                                            },
+                                            source: {
+                                                frame: ctx,
+                                                class: this
+                                            }
+                                        };
+                                        this.onmessage(context);
+                                    };
 
                                     const parse = async () => {
                                         let args_list = last_msg.text.trim().split(/ +/g);

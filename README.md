@@ -16,7 +16,6 @@ const bot = new client(
         prefix: ","
     }
 );
-);
 ```
 
 There are a couple of ways of adding commands
