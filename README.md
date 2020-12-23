@@ -83,7 +83,7 @@ async function onearg(ctx) {
 };
 
 bot.command("help", help);
-bot.command("onearg", echo)
+bot.command("onearg", onearg)
 ```
 
 If you need help, please contact me at tobi@ibot.wtf
