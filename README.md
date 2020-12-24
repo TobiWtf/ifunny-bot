@@ -89,3 +89,56 @@ bot.command("onearg", onearg)
 If you need help, please contact me at tobi@ibot.wtf
 
 Ill push more updates soon.
+
+# Example commands
+
+Here are some more example commands i wrote.
+
+```js
+
+bot.command(
+    "help",
+    async ctx => {
+        ctx.channel.send("Help message")
+    }
+);
+
+bot.command(
+    "kickme",
+    async ctx => {
+        ctx.channel.kick(ctx.command.message.user.id)
+    },
+);
+
+bot.command(
+    "search",
+    async ctx => {
+        ctx.channel.searchContacts(
+            async response => {
+                console.log(response)
+            },
+            {query: "tobi"}
+        )
+    }
+)
+
+bot.command(
+    "delete",
+    async ctx => ctx.channel.delete()
+)
+
+bot.command(
+    "members",
+    async ctx => {
+        ctx.channel.getChannelMembers(
+            async response => {
+                let nicks = [];
+                for (let {nick} of response) {
+                    nicks.push(nick);
+                };
+                ctx.channel.send(nicks.join("\n"))
+            },
+        );
+    },
+);
+```

@@ -11,7 +11,7 @@ module.exports = class client {
         this.events = {};
         this.commands = config.commands || {};
         this.autojoin = config.autojoin || false;
-        this.ifunnyapi = new api.ifunny(config);
+        this.ifunnyapi = new api.ifunny(config, this.socks);
         this.onmessage = config.onmessage || null;
         
         this.socks.BotEmitter.on(
@@ -119,10 +119,16 @@ module.exports = class client {
                                     let channel = new parser.channel(
                                         {
                                             data: chat,
-                                            BotEmitter: this.socks.BotEmitter
+                                            BotEmitter: this.socks.BotEmitter,
+                                            api: this.ifunnyapi,
                                         },
                                     );
                                     let last_msg = chat.last_msg;
+
+                                    if (!last_msg) {
+                                        return
+                                    }
+
                                     if (!last_msg.text) {
                                         return; //Message isnt a real message
                                     };
@@ -196,6 +202,7 @@ module.exports = class client {
                                         {
                                             data: chat,
                                             BotEmitter: this.socks.BotEmitter,
+                                            api: this.ifunnyapi,
                                         },
                                     );
                                     if (this.autojoin) {
@@ -234,6 +241,20 @@ module.exports = class client {
                             response
                         );
                     };
+                    if (raw[4].users) {
+                        let response = {
+                            users: raw[4].users
+                        };
+                        if (raw[4].next) {
+                            response.next = raw[4].next;
+                        };
+
+                        this.socks.BotEmitter.emit(
+                            "run_event",
+                            raw[1],
+                            response
+                        )
+                    }
                 };
             }
         )();
